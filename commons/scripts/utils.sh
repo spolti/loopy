@@ -68,11 +68,13 @@ warn() {
 # When error happen during processes
 error() {
   printf "${error}[ERROR] $*${color_reset}\n"
+  echo "[ERROR] $*" >&2
 }
 
 # When component result is 1(failed)
 fail() {
   printf "${fail}[FAIL] $*${color_reset}\n"
+  echo "[FAIL] $*" >&2
 }
 
 # When one function succeed in the process
@@ -464,3 +466,18 @@ function stop_when_error_happended {
     fi
   fi
 }
+
+def update_loopy_output_paths(ctx, output_root_dir, output_target_dir):
+    """
+    Update loopy_context output paths when output_root_dir or output_target_dir changes.
+    Args:
+        ctx: The context object (with .obj)
+        output_root_dir: New output root directory (string)
+        output_target_dir: New output target directory (string)
+    """
+    loopy_result_dir = os.path.join(output_root_dir, output_target_dir)
+    ctx.obj.loopy_result_dir = loopy_result_dir
+    ctx.obj.config["loopy_result_dir"] = loopy_result_dir
+    ctx.obj.config["output_dir"] = os.path.join(loopy_result_dir, "output")
+    ctx.obj.config["artifacts_dir"] = os.path.join(loopy_result_dir, "artifacts")
+    ctx.obj.config["report_file"] = os.path.join(loopy_result_dir, "report")

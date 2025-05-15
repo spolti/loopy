@@ -57,7 +57,10 @@ class EnvManager:
         env = {}
         for key, value in os.environ.items():
             if key.startswith("LOOPY"):
-                env[key.lower()] = value
+                if key != "LOOPY_ROOT_PATH":
+                    env[key[6:].lower()] = value
+                else:
+                    env[key.lower()] = value
         return env
 
     def get_config_path(self):
@@ -68,3 +71,17 @@ class EnvManager:
 
     def get_env(self):
         return self.env
+
+    def update_env_from_system_if_config_key_exists(self, config_data: dict):
+        """
+        Update internal env dictionary with values from system environment variables (os.environ)
+        if the corresponding key exists in the configuration.
+        """
+        # Add matching environment variables to env
+        for config_key in config_data:
+            # Check for both original case and lowercase in environment variables
+            env_key = (
+                config_key.upper()
+            )  # Convert to uppercase for environment variable check
+            if env_key in os.environ:
+                self.env[config_key] = os.environ[env_key]

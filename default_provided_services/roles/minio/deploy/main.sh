@@ -27,14 +27,16 @@ minio_deployment_manifests=$(yq e '.role.manifests.minio_deployment' $current_di
 minio_deployment_manifests_path=$current_dir/$minio_deployment_manifests
 
 result=1 # 0 is "succeed", 1 is "fail"
-if [[ z${CLUSTER_TOKEN} != z ]]; then
-  oc login --token=${CLUSTER_TOKEN} --server=${CLUSTER_API_URL}
-else
-  oc login --username=${CLUSTER_ADMIN_ID} --password=${CLUSTER_ADMIN_PW} --server=${CLUSTER_API_URL}
+if [[ z${USE_KIND} == z ]]; then
+  if [[ z${CLUSTER_TOKEN} != z ]]; then
+    oc login --token=${CLUSTER_TOKEN} --server=${CLUSTER_API_URL}
+  else
+    oc login --username=${CLUSTER_ADMIN_ID} --password=${CLUSTER_ADMIN_PW} --server=${CLUSTER_API_URL}
+  fi
+  check_oc_status
 fi
-check_oc_status
 
-oc get ns ${MINIO_NAMESPACE} >/dev/null 2>&1 || oc new-project ${MINIO_NAMESPACE} >/dev/null 2>&1
+oc get ns ${MINIO_NAMESPACE} >/dev/null 2>&1 || oc create ns ${MINIO_NAMESPACE} >/dev/null 2>&1
 oc label namespace ${MINIO_NAMESPACE} pod-security.kubernetes.io/enforce=baseline --overwrite
 oc label namespace ${MINIO_NAMESPACE} pod-security.kubernetes.io/warn=baseline --overwrite
 oc label namespace ${MINIO_NAMESPACE} pod-security.kubernetes.io/audit=baseline --overwrite
@@ -61,10 +63,15 @@ if [[ ${enable_ssl} == "0" ]]; then
   oc create secret generic minio-tls --from-file="${ROLE_DIR}/minio.key" --from-file="${ROLE_DIR}/minio.crt" --from-file="${ROLE_DIR}/root.crt" -n ${MINIO_NAMESPACE}
 
   yq -i eval '.spec.containers[0].volumeMounts += [{"name": "minio-tls", "mountPath": "/home/modelserving/.minio/certs"}] | .spec.volumes += [{"name": "minio-tls", "projected": {"defaultMode": 420, "sources": [{"secret": {"items": [{"key": "minio.crt", "path": "public.crt"}, {"key": "minio.key", "path": "private.key"}, {"key": "root.crt", "path": "CAs/root.crt"}], "name": "minio-tls"}}]}}]' ${ROLE_DIR}/$(basename $minio_deployment_manifests_path)
+  
+  oc create route reencrypt minio --service=minio --port=minio-client-port --dest-ca-cert ${ROLE_DIR}/root.crt
+  oc create route reencrypt minio-ui --service=minio --port=minio-ui-port --dest-ca-cert ${ROLE_DIR}/root.crt
 else
   error "We set the ENABLE_SSL($ENABLE_SSL) as a FALSE"
   result=1
   stop_when_error_happended $result $index_role_name $REPORT_FILE
+  oc expose service minio --name=minio --port=minio-client-port
+  oc expose service minio --name=minio-ui  --port=minio-ui-port 
 fi
 oc apply -f ${ROLE_DIR}/$(basename $minio_deployment_manifests_path)
 

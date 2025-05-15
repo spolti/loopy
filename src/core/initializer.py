@@ -27,21 +27,28 @@ class Initializer:
         self.now = datetime.now()
         self.loopy_root_path = self.config_data["loopy_root_path"]
         self.output_root_dir = self.config_data["output_root_dir"]
+
         # result folder format
         target_report_dir = self.now.strftime("%Y%m%d_%H%M")
-        if self.config_data.get("output_target_dir"):
-            target_report_dir = self.config_data["output_target_dir"]
+        if self.env_list.get("output_target_dir"):
+            target_report_dir = self.env_list.get("output_target_dir")
         self.loopy_result_dir = os.path.join(self.output_root_dir, target_report_dir)
 
-        # if self.config_data.get("loopy_result_dir"):
+        # if self.env_list.get("LOOPY_RESULT_DIR"):
         #     self.loopy_result_dir = self.config_data["loopy_result_dir"]
         self.config_data["loopy_result_dir"] = self.loopy_result_dir
 
     def initialize(self):
         # Initialize result directory
-        output_dir = os.path.join(self.loopy_result_dir, self.config_data["output_env_dir"])
-        artifacts_dir = os.path.join(self.loopy_result_dir, self.config_data["output_artifacts_dir"])
-        report_file = os.path.join(self.loopy_result_dir, self.config_data["output_report_file"])
+        output_dir = os.path.join(
+            self.loopy_result_dir, self.config_data["output_env_dir"]
+        )
+        artifacts_dir = os.path.join(
+            self.loopy_result_dir, self.config_data["output_artifacts_dir"]
+        )
+        report_file = os.path.join(
+            self.loopy_result_dir, self.config_data["output_report_file"]
+        )
 
         # Update config data with paths
         self.config_data["output_dir"] = output_dir
@@ -94,7 +101,10 @@ class Initializer:
 
         # Set binary path
         bin_path = os.path.join(os.getcwd(), "bin")
-        os.environ["PATH"] = f"{bin_path}{os.pathsep}{os.environ['PATH']}"
+        if os.environ.get("PATH"):
+            os.environ["PATH"] = f"{bin_path}{os.pathsep}{os.environ['PATH']}"
+        else:
+            os.environ["PATH"] = bin_path
 
         # Add Schema paths
         self.config_data["schema"] = {
@@ -104,9 +114,15 @@ class Initializer:
         }
 
         # Add default components paths
-        self.config_data["default_roles_dir"] = f"{self.loopy_root_path}/default_provided_services/roles"
-        self.config_data["default_units_dir"] = f"{self.loopy_root_path}/default_provided_services/units"
-        self.config_data["default_playbooks_dir"] = f"{self.loopy_root_path}/default_provided_services/playbooks"
+        self.config_data["default_roles_dir"] = (
+            f"{self.loopy_root_path}/default_provided_services/roles"
+        )
+        self.config_data["default_units_dir"] = (
+            f"{self.loopy_root_path}/default_provided_services/units"
+        )
+        self.config_data["default_playbooks_dir"] = (
+            f"{self.loopy_root_path}/default_provided_services/playbooks"
+        )
 
         # Initialize the list of components
         self.initialize_component_list("role")
@@ -167,7 +183,9 @@ class Initializer:
                         for error in file_errors:
                             print(f"{Fore.RED}YAML Schema Error!{Style.RESET_ALL}")
                             print(f"{Fore.RED}ERROR: {error}{Style.RESET_ALL}")
-                            print(f"{Fore.BLUE}YAML Content({config_path}){Style.RESET_ALL}")
+                            print(
+                                f"{Fore.BLUE}YAML Content({config_path}){Style.RESET_ALL}"
+                            )
                             exit(1)
 
                 with open(config_path, "r") as config_file:
@@ -181,10 +199,14 @@ class Initializer:
                             else:
                                 name = self.convert_path_to_component_name(path, type)
                             if "steps" in config_data[type]:
-                                role_name = config_data[type]["steps"][0]["role"]["name"]
+                                role_name = config_data[type]["steps"][0]["role"][
+                                    "name"
+                                ]
                             else:
                                 role_name = config_data[type]["role"]["name"]
-                            item_list.append({"name": name, "path": path, "role_name": role_name})
+                            item_list.append(
+                                {"name": name, "path": path, "role_name": role_name}
+                            )
                         else:
                             path = os.path.abspath(root)
                             if "name" in config_data[type]:
@@ -233,5 +255,3 @@ class Initializer:
         for error in validator.iter_errors(yaml_data):
             errors.append({"message": error.message, "path": list(error.path)})
         return errors
-
-

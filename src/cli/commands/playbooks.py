@@ -77,7 +77,7 @@ def run_playbook(
     role_list = ctx.obj.role_list
     unit_list = ctx.obj.unit_list
     playbook_list = ctx.obj.playbook_list
-    os.environ["ENABLE_LOOPY_LOG"] = str(ctx.obj.config["enable_loopy_log"])
+
     enable_loopy_logo = ctx.obj.config["enable_loopy_logo"]
     enable_loopy_report = ctx.obj.config["enable_loopy_report"]
 
@@ -88,10 +88,11 @@ def run_playbook(
 
     # Enable loopy role log
     if no_log:
-        os.environ["ENABLE_LOOPY_LOG"] = "false"
+        ctx.obj.config["enable_loopy_log"] = False
 
     # Print logo
     if no_logo:
+        ctx.obj.config["enable_loopy_logo"] = False
         pass
     elif enable_loopy_logo:
         utils.print_logo()
@@ -127,22 +128,19 @@ def run_playbook(
     for py_index, step in enumerate(steps):
         if list(step)[0] == "role":
             role_name = step["role"]["name"]
+            role_description = step["role"].get("description", "")
             additional_input_env = utils.get_input_env_from_config_data(step["role"])
             role = Role(
                 ctx,
                 role_count,
                 role_list,
                 role_name,
+                role_description,
                 params,
                 None,
                 additional_input_env,
             )
-            if additional_input_env is not None:
-                unit = Unit(role_name + "-unit")
-                unit.add_component(role)
-                playbook.add_component(unit)
-            else:
-                playbook.add_component(role)
+            playbook.add_component(role)
             role_count += 1
         if list(step)[0] == "unit":
             unit_name = step["unit"]["name"]
@@ -220,6 +218,7 @@ def run_playbook(
     playbook.start()
     # Print report
     if no_report:
+        ctx.obj.config["enable_loopy_report"] = False
         pass
     elif enable_loopy_report:
         loopy_report.summary(ctx)

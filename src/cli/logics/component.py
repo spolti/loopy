@@ -47,12 +47,16 @@ class Role:
         reportManager.load_summary()
 
         logger.info(f"{Back.BLUE}Start Role '{self.name}' {Fore.RESET}")
-        enable_loopy_log = utils.is_positive(os.environ["ENABLE_LOOPY_LOG"])
+        # enable_loopy_log = utils.is_positive(os.environ.get("ENABLE_LOOPY_LOG", False))
+        enable_loopy_log = config_dict["enable_loopy_log"]
         output_env_dir_path = config_dict["output_dir"]
         artifacts_dir_path = config_dict["artifacts_dir"]
         report_file = config_dict["report_file"]
 
-        first_component_type = reportManager.summary_dict["first_component_type"]
+        # Add default value "role" for e2e test
+        first_component_type = reportManager.summary_dict.get(
+            "first_component_type", "role"
+        )
         # Setup for role
         if first_component_type == "Role":
             self.index = 0
@@ -156,10 +160,19 @@ class Role:
                         proc.wait()
 
                         # error check
-                        if proc.returncode != 0:
-                            logger.error(
-                                f"{Fore.RED}Error occurred while executing. Return code: {proc.returncode} {Fore.RESET}"
+                        if proc.returncode != 0 or proc.stderr:
+                            # If there's stderr content, treat it as an error even if returncode is 0
+                            actual_return_code = (
+                                proc.returncode if proc.returncode != 0 else 1
                             )
+                            logger.error(
+                                f"{Fore.RED}Error occurred while executing. Return code: {actual_return_code} {Fore.RESET}"
+                            )
+                            if proc.stderr:
+                                logger.error(
+                                    f"{Fore.RED}Error message: {proc.stderr}{Fore.RESET}"
+                                )
+                            proc.returncode = actual_return_code
                 except Exception as e:
                     logger.error(
                         f"{Fore.RED}subprocess failed to execute role: {e} {Fore.RESET}"
@@ -199,14 +212,17 @@ class Role:
 
         # end time update
         reportManager.load_role_time()
-        end_time = reportManager.role_time_dict["end_time"]
+        end_time = reportManager.role_time_dict.get("end_time", "")
 
         if self.name != "shell-execute":
             end_time.append(time.time())
             reportManager.update_role_time("end_time", end_time)
 
         reportManager.load_summary()
-        first_component_type = reportManager.summary_dict["first_component_type"]
+        # Add default value "role" for e2e test
+        first_component_type = reportManager.summary_dict.get(
+            "first_component_type", "role"
+        )
         if first_component_type == "Role":
             reportManager.update_summary(
                 "components",
@@ -359,8 +375,8 @@ def get_role_result(
         "result": 0,
     }
 
-    start_time = reportManager.role_time_dict["start_time"]
-    end_time = reportManager.role_time_dict["end_time"]
+    start_time = reportManager.role_time_dict.get("start_time", "")
+    end_time = reportManager.role_time_dict.get("end_time", "")
     for i in range(len(start_time)):
         start = start_time[i]
         end = end_time[i]
